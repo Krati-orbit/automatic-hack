@@ -24,10 +24,14 @@ def scout_and_store_opportunities(profile_id: int) -> dict:
 
     categories = ["job", "internship", "competition", "hackathon", "conclave"]
     stored_count = 0
+    engines_used = set()
 
-    for i, kw in enumerate(keywords[:5]):
+    for i, kw in enumerate(keywords[:3]):
         category = categories[i % len(categories)]
         search_res = search_web(kw, category)
+
+        if search_res.get("engine"):
+            engines_used.add(search_res["engine"])
 
         for item in search_res.get("results", []):
             item["profile_id"] = profile_id
@@ -38,6 +42,7 @@ def scout_and_store_opportunities(profile_id: int) -> dict:
         "status": "success",
         "profile_id": profile_id,
         "opportunities_found": stored_count,
+        "search_engines": list(engines_used),
     }
 
 

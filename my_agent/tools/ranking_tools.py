@@ -1,22 +1,11 @@
-"""Ranking tool for CareerOS — scores and orders opportunities."""
+"""Ranking tool for CareerOS powered by LiteLLM & Groq Cloud LLM."""
 
 import json
+from .llm_tools import call_groq_llm_json
 
 
 def rank_results(profile_data: str, opportunities_data: str) -> dict:
-    """Scores and ranks opportunities by relevance to the candidate profile.
-
-    Compares each opportunity against the candidate's tech stack, interests,
-    preferred roles, and experience level to assign a relevance score (0-100)
-    and match reasons.
-
-    Args:
-        profile_data: A JSON string of the candidate profile record.
-        opportunities_data: A JSON string containing a list of opportunity records.
-
-    Returns:
-        A dict with the scored and ranked opportunities.
-    """
+    """Scores and ranks opportunities using Groq Cloud LLM AI Matcher."""
     try:
         profile = json.loads(profile_data) if isinstance(profile_data, str) else profile_data
     except json.JSONDecodeError:
@@ -30,106 +19,106 @@ def rank_results(profile_data: str, opportunities_data: str) -> dict:
     if isinstance(opportunities, dict):
         opportunities = opportunities.get("records", [opportunities])
 
-    # Get profile keywords for matching
     tech_stack = profile.get("tech_stack", [])
     if isinstance(tech_stack, str):
         try:
             tech_stack = json.loads(tech_stack)
-        except json.JSONDecodeError:
+        except Exception:
             tech_stack = [tech_stack]
-
-    interests = profile.get("interests", [])
-    if isinstance(interests, str):
-        try:
-            interests = json.loads(interests)
-        except json.JSONDecodeError:
-            interests = [interests]
 
     preferred_roles = profile.get("preferred_roles", [])
     if isinstance(preferred_roles, str):
         try:
             preferred_roles = json.loads(preferred_roles)
-        except json.JSONDecodeError:
+        except Exception:
             preferred_roles = [preferred_roles]
 
-    search_keywords = profile.get("search_keywords", [])
-    if isinstance(search_keywords, str):
-        try:
-            search_keywords = json.loads(search_keywords)
-        except json.JSONDecodeError:
-            search_keywords = [search_keywords]
-
     ranked = []
+
+    # Process batch with Groq Cloud LLM if available
+    opp_summaries = []
+    for opp in opportunities[:10]:
+        if isinstance(opp, dict):
+            opp_summaries.append({
+                "id": opp.get("id", 0),
+                "title": opp.get("title", ""),
+                "category": opp.get("category", ""),
+                "source": opp.get("source", ""),
+                "description": opp.get("description", "")[:150]
+            })
+
+    prompt = f"""
+Evaluate candidate fit for each opportunity and return a JSON list of matches:
+[
+  {{
+    "id": (number, opportunity id),
+    "relevance_score": (number 0-100),
+    "match_reasons": (list of 2-3 specific short strings explaining why this opportunity matches candidate skills)
+  }}
+]
+
+CANDIDATE PROFILE:
+Tech Stack: {', '.join(tech_stack[:8])}
+Preferred Roles: {', '.join(preferred_roles[:3])}
+
+OPPORTUNITIES:
+{json.dumps(opp_summaries, indent=2)}
+"""
+
+    llm_matches = call_groq_llm_json(prompt, system_instruction="You are an AI Job Matching & Ranking Engine. Return a valid JSON list only.")
+
+    llm_score_map = {}
+    if isinstance(llm_matches, list):
+        for item in llm_matches:
+            if isinstance(item, dict) and "id" in item:
+                llm_score_map[item["id"]] = item
+    elif isinstance(llm_matches, dict) and "matches" in llm_matches:
+        for item in llm_matches["matches"]:
+            if isinstance(item, dict) and "id" in item:
+                llm_score_map[item["id"]] = item
+
     for opp in opportunities:
         if not isinstance(opp, dict):
             continue
 
-        score = 0
-        match_reasons = []
-        opp_text = (
-            f"{opp.get('title', '')} {opp.get('description', '')} {opp.get('category', '')}"
-        ).lower()
+        opp_id = opp.get("id", 0)
+        opp_text = f"{opp.get('title', '')} {opp.get('description', '')} {opp.get('category', '')}".lower()
+        
+        # Check if Groq LLM provided a score
+        if opp_id in llm_score_map:
+            match_info = llm_score_map[opp_id]
+            score = match_info.get("relevance_score", 80)
+            reasons = match_info.get("match_reasons", ["Matched by Groq Cloud AI"])
+        else:
+            # Rule fallback
+            score = 60
+            reasons = []
+            tech_matches = [t for t in tech_stack if t.lower() in opp_text]
+            if tech_matches:
+                score += min(30, len(tech_matches) * 10)
+                reasons.append(f"Tech match: {', '.join(tech_matches[:3])}")
+            role_matches = [r for r in preferred_roles if r.lower() in opp_text]
+            if role_matches:
+                score += 10
+                reasons.append(f"Role match: {role_matches[0]}")
+            if not reasons:
+                reasons.append(f"Category relevance: {opp.get('category', 'Job')}")
 
-        # Score based on tech stack matches (up to 40 points)
-        tech_matches = [t for t in tech_stack if t.lower() in opp_text]
-        if tech_matches:
-            tech_score = min(40, len(tech_matches) * 10)
-            score += tech_score
-            match_reasons.append(f"Tech match: {', '.join(tech_matches[:3])}")
-
-        # Score based on role match (up to 25 points)
-        role_matches = [r for r in preferred_roles if r.lower() in opp_text]
-        if role_matches:
-            score += 25
-            match_reasons.append(f"Role match: {', '.join(role_matches[:2])}")
-
-        # Score based on interest match (up to 15 points)
-        interest_matches = [i for i in interests if i.lower() in opp_text]
-        if interest_matches:
-            score += min(15, len(interest_matches) * 5)
-            match_reasons.append(f"Interest match: {', '.join(interest_matches[:2])}")
-
-        # Score based on category relevance (up to 10 points)
-        category = opp.get("category", "")
-        category_scores = {
-            "job": 10,
-            "internship": 9,
-            "hackathon": 7,
-            "competition": 6,
-            "conclave": 5,
-        }
-        cat_score = category_scores.get(category, 3)
-        score += cat_score
-        match_reasons.append(f"Category: {category}")
-
-        # Base score for having a deadline (urgency bonus)
-        deadline = opp.get("deadline", "")
-        if deadline and deadline != "Open":
-            score += 5
-            match_reasons.append("Has deadline — act soon")
-
-        # Keyword overlap bonus (up to 5 points)
-        keyword_hits = sum(1 for kw in search_keywords if kw.lower() in opp_text)
-        if keyword_hits:
-            score += min(5, keyword_hits * 2)
-
-        # Cap at 100
-        score = min(100, score)
+        score = min(100, max(10, score))
 
         ranked.append({
-            "opportunity_id": opp.get("id", 0),
+            "opportunity_id": opp_id,
             "title": opp.get("title", ""),
             "url": opp.get("url", ""),
-            "category": category,
+            "category": opp.get("category", "job"),
             "relevance_score": score,
-            "match_reasons": match_reasons,
+            "match_reasons": reasons,
             "profile_id": profile.get("id", 0),
+            "llm_engine": "groq_openai_gpt_oss_20b" if opp_id in llm_score_map else "heuristic"
         })
 
-    # Sort by score descending
+    # Sort descending by relevance score
     ranked.sort(key=lambda x: x["relevance_score"], reverse=True)
-
-    # Assign rank
     for i, item in enumerate(ranked):
         item["rank"] = i + 1
 

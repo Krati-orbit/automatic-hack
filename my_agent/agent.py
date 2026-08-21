@@ -65,17 +65,17 @@ Always complete all steps — read resume, read analysis, make profile, then sto
 opportunity_scout = Agent(
     model=MODEL,
     name="opportunity_scout",
-    description="Searches the internet for jobs, internships, competitions, hackathons, and conclaves matching the candidate profile. Call this agent after profile is built.",
+    description="Searches the live internet using Firecrawl MCP for jobs, internships, competitions, hackathons, and conclaves matching the candidate profile.",
     instruction="""You are the Opportunity Scout agent. When activated:
 
 1. Call `read_from_db` with table='profiles' to fetch the candidate profile.
-2. Use the search_keywords from the profile to make multiple `search_web` calls.
-   For each keyword, search across different categories: 'job', 'internship', 'competition', 'hackathon', 'conclave'.
-   Do at least 3-5 searches covering different categories.
+2. Use the candidate's search_keywords to execute `search_web` queries powered by Firecrawl MCP.
+   For each keyword, search across target categories: 'job', 'internship', 'competition', 'hackathon', 'conclave'.
+   Perform at least 3-5 searches covering diverse categories.
 3. For each batch of results, call `store_to_db` with table='opportunities' to save each opportunity. Include the profile_id.
-4. Return how many opportunities were found.
+4. Return how many opportunities were discovered via Firecrawl MCP.
 
-Be thorough — search across multiple categories to find diverse opportunities.""",
+Be thorough — leverage Firecrawl MCP for deep web opportunity extraction.""",
     tools=[read_from_db, search_web, store_to_db],
     mode="single_turn",
 )
