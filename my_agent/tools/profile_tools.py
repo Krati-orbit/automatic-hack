@@ -61,7 +61,7 @@ ANALYSIS:
         "interests": [analysis.get("domain_focus", "Software Development")],
         "career_goals": f"Seeking positions as a Software Developer focused on {analysis.get('domain_focus', 'Tech')}.",
         "preferred_roles": ["Software Developer", "Full Stack Engineer"],
-        "experience_summary": f"{name} is a candidate skilled in {', '.join(skills[:4])}.",
+        "experience_summary": f"{name} is a candidate skilled in {', '.join(skills[:4])}." if skills else f"{name} is a software product candidate seeking growth opportunities.",
         "location_preference": "remote",
         "search_keywords": [f"{skills[0] if skills else 'Software'} job"],
         "llm_engine": "rule_fallback"

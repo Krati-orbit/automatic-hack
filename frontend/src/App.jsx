@@ -81,8 +81,10 @@ export default function App() {
   // Opportunities & Filters State
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  // Modal State
+  // Modal & Notification State
   const [selectedResumeModal, setSelectedResumeModal] = useState(null);
+  const [pipelineSuccessModal, setPipelineSuccessModal] = useState(null);
+  const [shieldNotification, setShieldNotification] = useState(null);
 
   // Initial Load
   useEffect(() => {
@@ -231,6 +233,9 @@ export default function App() {
         }
         fetchResumesList();
         fetchAuditLogs();
+
+        // Show completion popup modal so user knows processing is 100% complete
+        setPipelineSuccessModal(data);
       } else {
         alert(`Error: ${data.detail || data.message || 'Pipeline execution failed'}`);
       }
@@ -350,6 +355,18 @@ export default function App() {
     ? currentOpportunities
     : currentOpportunities.filter(o => o.category?.toLowerCase() === selectedCategory.toLowerCase());
 
+  // Handle Shield Toggle
+  const handleToggleShield = () => {
+    const nextVal = !armoriqSecured;
+    setArmoriqSecured(nextVal);
+    setShieldNotification({
+      type: nextVal ? 'secured' : 'unsecured',
+      message: nextVal
+        ? '🛡️ ArmorIQ Shield ENABLED (ON): Cryptographic delegation active. Sub-agents are restricted to authorized tool scopes.'
+        : '🛑 ArmorIQ Shield DISABLED (OFF): Governance checks bypassed! Prompt injections can now execute unauthorized tool calls!',
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#0B0F17] text-gray-100 font-sans pb-16">
       {/* ── TOP NAVBAR WITH MULTI-USER SELECTOR & ARMORIQ SECURITY TOGGLE ─────── */}
@@ -407,7 +424,7 @@ export default function App() {
               </span>
               <button
                 type="button"
-                onClick={() => setArmoriqSecured(!armoriqSecured)}
+                onClick={handleToggleShield}
                 className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                   armoriqSecured ? 'bg-emerald-500' : 'bg-rose-600'
                 }`}
@@ -426,6 +443,18 @@ export default function App() {
           </div>
 
         </div>
+
+        {/* SHIELD TOGGLE NOTIFICATION BANNER */}
+        {shieldNotification && (
+          <div className={`max-w-7xl mx-auto mt-3 p-2.5 rounded-xl border text-xs font-mono flex items-center justify-between transition-all ${
+            shieldNotification.type === 'secured'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+              : 'bg-rose-500/15 border-rose-500/40 text-rose-300 animate-pulse'
+          }`}>
+            <span>{shieldNotification.message}</span>
+            <button onClick={() => setShieldNotification(null)} className="text-gray-400 hover:text-white font-bold ml-4">✕</button>
+          </div>
+        )}
 
         {/* TOP PAGE NAVIGATION TABS */}
         <div className="max-w-7xl mx-auto mt-4 pt-3 border-t border-gray-800/60 flex items-center justify-between">
@@ -896,6 +925,119 @@ export default function App() {
                     </div>
                   </div>
                 </section>
+
+                {/* EXTRACTED RESUME DETAILS (EDUCATION, PROJECTS, EXPERIENCE, CERTIFICATIONS) */}
+                <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* EDUCATION CARD */}
+                  <div className="glass-card p-6">
+                    <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+                      <BookOpen className="w-5 h-5 text-indigo-400" /> Education & Qualifications
+                    </h3>
+                    {currentResume?.education && (Array.isArray(currentResume.education) ? currentResume.education.length > 0 : String(currentResume.education).trim()) ? (
+                      <div className="space-y-2 text-xs">
+                        {Array.isArray(currentResume.education) ? (
+                          currentResume.education.map((edu, i) => (
+                            <div key={i} className="bg-[#070A11]/80 border border-gray-800 p-3 rounded-xl text-gray-200">
+                              🎓 {edu}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="bg-[#070A11]/80 border border-gray-800 p-3 rounded-xl text-gray-200 whitespace-pre-line">
+                            🎓 {currentResume.education}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">No education entries extracted.</p>
+                    )}
+                  </div>
+
+                  {/* PROJECTS CARD */}
+                  <div className="glass-card p-6">
+                    <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+                      <Code className="w-5 h-5 text-cyan-400" /> Projects & Portfolio
+                    </h3>
+                    {currentResume?.projects && (Array.isArray(currentResume.projects) ? currentResume.projects.length > 0 : String(currentResume.projects).trim()) ? (
+                      <div className="space-y-2 text-xs">
+                        {Array.isArray(currentResume.projects) ? (
+                          currentResume.projects.map((proj, i) => (
+                            <div key={i} className="bg-[#070A11]/80 border border-gray-800 p-3 rounded-xl text-gray-200">
+                              🚀 {proj}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="bg-[#070A11]/80 border border-gray-800 p-3 rounded-xl text-gray-200 whitespace-pre-line">
+                            🚀 {currentResume.projects}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">No project entries extracted.</p>
+                    )}
+                  </div>
+
+                  {/* WORK EXPERIENCE CARD */}
+                  <div className="glass-card p-6">
+                    <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+                      <Briefcase className="w-5 h-5 text-emerald-400" /> Work Experience
+                    </h3>
+                    {currentResume?.experience && (Array.isArray(currentResume.experience) ? currentResume.experience.length > 0 : String(currentResume.experience).trim()) ? (
+                      <div className="space-y-2 text-xs">
+                        {Array.isArray(currentResume.experience) ? (
+                          currentResume.experience.map((exp, i) => (
+                            <div key={i} className="bg-[#070A11]/80 border border-gray-800 p-3 rounded-xl text-gray-200">
+                              💼 {exp}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="bg-[#070A11]/80 border border-gray-800 p-3 rounded-xl text-gray-200 whitespace-pre-line">
+                            💼 {currentResume.experience}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">No work experience entries extracted.</p>
+                    )}
+                  </div>
+
+                  {/* CERTIFICATIONS & SKILLS CARD */}
+                  <div className="glass-card p-6">
+                    <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+                      <Award className="w-5 h-5 text-amber-400" /> Certifications & Extracted Skills
+                    </h3>
+                    <div className="space-y-4 text-xs">
+                      {currentResume?.certifications && (Array.isArray(currentResume.certifications) ? currentResume.certifications.length > 0 : String(currentResume.certifications).trim()) ? (
+                        <div>
+                          <p className="font-semibold text-amber-300 mb-2">🏆 Certifications:</p>
+                          <div className="space-y-1.5">
+                            {Array.isArray(currentResume.certifications) ? (
+                              currentResume.certifications.map((cert, i) => (
+                                <div key={i} className="bg-[#070A11]/80 border border-gray-800 p-2.5 rounded-lg text-amber-100">
+                                  • {cert}
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-gray-300">{currentResume.certifications}</p>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {currentResume?.skills && Array.isArray(currentResume.skills) && currentResume.skills.length > 0 && (
+                        <div>
+                          <p className="font-semibold text-indigo-300 mb-2">📜 Parsed Resume Skills:</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {currentResume.skills.map((sk, i) => (
+                              <span key={i} className="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px] font-mono">
+                                {sk}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
               </>
             ) : (
               <div className="glass-card p-12 text-center">
@@ -1033,6 +1175,72 @@ export default function App() {
                   </pre>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* PIPELINE EXECUTION SUCCESS POPUP MODAL */}
+        {pipelineSuccessModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="glass-card max-w-lg w-full p-6 space-y-6 text-center border-emerald-500/50 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+              <button
+                onClick={() => setPipelineSuccessModal(null)}
+                className="absolute top-4 right-4 p-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+                <CheckCircle className="w-10 h-10" />
+              </div>
+
+              <div>
+                <h3 className="text-xl font-extrabold text-white">🎉 5-Stage Governed Pipeline Completed!</h3>
+                <p className="text-xs text-gray-300 mt-2 leading-relaxed">
+                  Candidate resume parsed, AI profile built, and real opportunities scouted & ranked successfully under <strong>ArmorIQ Zero-Trust Governance</strong>.
+                </p>
+              </div>
+
+              <div className="bg-[#070A11] p-4 rounded-xl border border-gray-800 text-xs font-mono grid grid-cols-2 gap-3 text-left">
+                <div>
+                  <span className="text-gray-400 text-[10px]">CANDIDATE PROFILE:</span>
+                  <p className="text-indigo-300 font-bold">Profile ID #{pipelineSuccessModal.profile_id}</p>
+                </div>
+                <div>
+                  <span className="text-gray-400 text-[10px]">PARSED RESUME:</span>
+                  <p className="text-cyan-300 font-bold">Resume ID #{pipelineSuccessModal.resume_id}</p>
+                </div>
+                <div>
+                  <span className="text-gray-400 text-[10px]">OPPORTUNITIES SCOUTED:</span>
+                  <p className="text-emerald-400 font-bold">{pipelineSuccessModal.opportunities_found || 0} Found</p>
+                </div>
+                <div>
+                  <span className="text-gray-400 text-[10px]">RANKED MATCHES:</span>
+                  <p className="text-emerald-400 font-bold">{pipelineSuccessModal.total_ranked || 0} Ranked</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setPipelineSuccessModal(null);
+                    setActiveNavTab('profile');
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white text-xs font-semibold shadow-lg shadow-indigo-500/20 flex items-center gap-1.5"
+                >
+                  <User className="w-4 h-4" /> View Candidate Profile
+                </button>
+
+                <button
+                  onClick={() => {
+                    setPipelineSuccessModal(null);
+                    setActiveNavTab('opportunities');
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-500/20 flex items-center gap-1.5"
+                >
+                  <Briefcase className="w-4 h-4" /> View Opportunities
+                </button>
+              </div>
             </div>
           </div>
         )}

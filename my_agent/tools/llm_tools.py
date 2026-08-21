@@ -8,9 +8,12 @@ import json
 import os
 import re
 import litellm
+from dotenv import load_dotenv
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-# Models available on user's key: groq/openai/gpt-oss-20b, groq/openai/gpt-oss-120b, groq/qwen/qwen3.6-27b
+# Ensure .env is loaded
+load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".env"))
+
 GROQ_MODEL = os.getenv("GROQ_MODEL", "groq/openai/gpt-oss-20b")
 
 litellm.telemetry = False
@@ -18,10 +21,11 @@ litellm.telemetry = False
 
 def call_groq_llm(prompt: str, system_instruction: str = "You are an expert AI Career Assistant for candidate analysis.") -> str:
     """Invokes Groq Cloud LLM via LiteLLM returning generated text response."""
+    api_key = os.getenv("GROQ_API_KEY", "")
     try:
         res = litellm.completion(
             model=GROQ_MODEL,
-            api_key=GROQ_API_KEY,
+            api_key=api_key,
             messages=[
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": prompt}

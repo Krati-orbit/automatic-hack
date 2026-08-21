@@ -31,13 +31,29 @@ RESUME TEXT:
     email_match = re.findall(r'[\w.+-]+@[\w-]+\.[\w.-]+', resume_text)
     phone_match = re.findall(r'[\+]?[\d\s\-\(\)]{10,15}', resume_text)
 
+    email_val = llm_res.get("email") or (email_match[0] if email_match else "")
     name = llm_res.get("name") or ""
+    
+    # Filter out section headers accidentally picked up as names
+    invalid_header_words = {"stack", "technical stack", "resume", "cv", "curriculum vitae", "experience", "education", "skills", "summary", "projects", "contact", "profile", "overview", "header"}
+    if name and name.lower().strip() in invalid_header_words:
+        name = ""
+
     if not name:
         for line in resume_text.strip().split('\n'):
             stripped = line.strip()
             if stripped and '@' not in stripped and not re.match(r'^[\d\+\(\)]', stripped):
-                name = stripped
-                break
+                if stripped.lower() not in invalid_header_words and len(stripped) < 40 and not any(k in stripped.lower() for k in ["stack", "resume", "summary", "skills"]):
+                    name = stripped
+                    break
+
+    # Final fallback: infer name from email if still missing
+    if not name and email_val:
+        handle = email_val.split('@')[0]
+        clean_handle = re.sub(r'\d+', '', handle).replace('.', ' ').replace('_', ' ').strip().title()
+        name = clean_handle if clean_handle else "Candidate"
+    elif not name:
+        name = "Candidate"
 
     return {
         "status": "success",
