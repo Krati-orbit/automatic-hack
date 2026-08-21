@@ -56,6 +56,25 @@ class QueryRequest(BaseModel):
     question: str
 
 
+# ── Root Welcome Endpoint ───────────────────────────────────────────────────
+@app.get("/")
+def read_root():
+    return {
+        "status": "online",
+        "service": "CareerOS ArmorIQ Governed API Server",
+        "version": "1.0",
+        "documentation": "/docs",
+        "endpoints": {
+            "process_resume": "/api/process-resume (POST)",
+            "query_db": "/api/query-db (POST)",
+            "latest_profile": "/api/profile/latest (GET)",
+            "latest_opportunities": "/api/opportunities/latest (GET)",
+            "audit_logs": "/api/audit-logs (GET)",
+            "trigger_attack": "/api/demo/trigger-attack (POST)"
+        }
+    }
+
+
 # ── 1. Process Resume Endpoint (Full Pipeline) ──────────────────────────────
 @app.post("/api/process-resume")
 async def process_resume(resume_text: str = Form(...)):
