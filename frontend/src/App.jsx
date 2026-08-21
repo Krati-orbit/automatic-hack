@@ -465,15 +465,29 @@ export default function App() {
                   <h4 className="text-sm font-bold text-white mb-1 line-clamp-1">{opp.title}</h4>
                   <p className="text-xs text-gray-400 mb-3 line-clamp-2">{opp.description}</p>
 
-                  {opp.match_reasons && (
-                    <div className="space-y-1 mb-3">
-                      {opp.match_reasons.map((r, i) => (
-                        <p key={i} className="text-[11px] text-gray-300 flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0" /> {r}
-                        </p>
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    const reasons = Array.isArray(opp.match_reasons)
+                      ? opp.match_reasons
+                      : typeof opp.match_reasons === 'string'
+                      ? (() => {
+                          try {
+                            const p = JSON.parse(opp.match_reasons);
+                            return Array.isArray(p) ? p : [opp.match_reasons];
+                          } catch {
+                            return [opp.match_reasons];
+                          }
+                        })()
+                      : [];
+                    return reasons.length > 0 ? (
+                      <div className="space-y-1 mb-3">
+                        {reasons.map((r, i) => (
+                          <p key={i} className="text-[11px] text-gray-300 flex items-center gap-1">
+                            <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0" /> {r}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
 
                 <a
