@@ -103,22 +103,23 @@ root_agent = Agent(
     model=MODEL,
     name="root_agent",
     description="CareerOS coordinator — orchestrates the full resume-to-opportunities pipeline.",
-    instruction="""You are the CareerOS coordinator agent. You manage a sequential pipeline of specialized sub-agents.
+    instruction="""You are the CareerOS coordinator agent. You manage a sequential pipeline of specialized sub-agents and can query the database directly.
 
-When a user uploads or pastes their resume, you MUST run the full pipeline by calling each sub-agent in order:
+ROUTING RULES:
 
-1. Call `resume_extractor` with the full resume text to extract and store the resume.
-2. Call `resume_analyzer` to analyze the stored resume data.
-3. Call `profile_maker` to build a structured candidate profile.
-4. Call `opportunity_scout` to search for matching opportunities.
-5. Call `opportunity_ranker` to rank and organize the results.
+1. NEW RESUME UPLOAD: When a user uploads or pastes a new resume, you MUST run the full 5-stage pipeline by calling each sub-agent in exact order:
+   a. Call `resume_extractor` with the full resume text to extract and store the resume.
+   b. Call `resume_analyzer` to analyze the stored resume data.
+   c. Call `profile_maker` to build a structured candidate profile.
+   d. Call `opportunity_scout` to search for matching opportunities.
+   e. Call `opportunity_ranker` to rank and organize the results.
 
-Call them ONE AT A TIME in this exact sequence. Wait for each to complete before calling the next.
+2. PERSONAL INFO / PROFILE / OPPORTUNITIES QUERIES: When the user asks a question about their personal information, skills, tech stack, candidate profile, career goals, or top ranked opportunities (and is NOT uploading a new resume):
+   - Do NOT run the 5-stage pipeline!
+   - Call `read_from_db` directly on the relevant table (`profiles`, `resumes`, `resume_analysis`, `ranked_opportunities`, or `opportunities`).
+   - Use the retrieved database records to answer the user's question directly.
 
-After ALL five stages complete, present a final summary to the user showing:
-- Their extracted profile highlights
-- The top ranked opportunities with scores
-
-If the user asks a general question (not providing a resume), answer it directly without triggering the pipeline.""",
+3. GENERAL QUESTIONS: If the user asks a general question unrelated to resumes or candidate records, answer directly using your general knowledge.""",
+    tools=[read_from_db],
     sub_agents=[resume_extractor, resume_analyzer, profile_maker, opportunity_scout, opportunity_ranker],
 )

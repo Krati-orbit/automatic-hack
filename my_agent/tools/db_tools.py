@@ -108,10 +108,17 @@ def store_to_db(table: str, data: str) -> dict:
 
     conn = _get_connection()
     try:
-        columns = ", ".join(record.keys())
-        placeholders = ", ".join(["?"] * len(record))
+        # Get valid column names for the table
+        table_info = conn.execute(f"PRAGMA table_info({table})").fetchall()
+        valid_cols = {col["name"] for col in table_info}
+
+        # Filter record to only include valid table columns
+        filtered_record = {k: v for k, v in record.items() if k in valid_cols}
+
+        columns = ", ".join(filtered_record.keys())
+        placeholders = ", ".join(["?"] * len(filtered_record))
         values = []
-        for v in record.values():
+        for v in filtered_record.values():
             if isinstance(v, (dict, list)):
                 values.append(json.dumps(v))
             else:

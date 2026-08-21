@@ -1,0 +1,16 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Secrets & Environment
+.env
+
+# ADK & Temp storage
+.adk/
+temp_libs/
+pdf_text.txt
+extract_pdf.py
+
+# OS metadata
+.DS_Store
+Thumbs.db
