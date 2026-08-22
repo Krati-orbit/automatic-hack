@@ -167,6 +167,43 @@ export default function App() {
     fetchProfilePayload(pid);
   };
 
+  // Delete Candidate Profile
+  const handleDeleteProfile = async (pid) => {
+    if (!pid) return;
+    const pObj = profilesList.find((p) => p.profile_id === pid);
+    const pName = pObj?.candidate_name || `Profile #${pid}`;
+
+    if (!window.confirm(`Are you sure you want to delete profile "${pName}" (ID #${pid})?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/profiles/${pid}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        const remaining = profilesList.filter((p) => p.profile_id !== pid);
+        setProfilesList(remaining);
+        if (remaining.length > 0) {
+          const nextId = remaining[0].profile_id;
+          setActiveProfileId(nextId);
+          fetchProfilePayload(nextId);
+        } else {
+          setActiveProfileId(null);
+          setProfilePayload(null);
+        }
+        fetchResumesList();
+        fetchAuditLogs();
+      } else {
+        alert(data.detail || 'Failed to delete profile');
+      }
+    } catch (e) {
+      console.error('Error deleting profile:', e);
+      alert('Network error while deleting profile');
+    }
+  };
+
   // Fixed JS PDF File Selector
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -389,8 +426,8 @@ export default function App() {
           {/* USER SELECTOR & SECURITY TOGGLE */}
           <div className="flex items-center gap-4">
             
-            {/* USER PROFILE SWITCHER DROPDOWN */}
-            <div className="relative">
+            {/* USER PROFILE SWITCHER DROPDOWN & DELETE PROFILE BUTTON */}
+            <div className="relative flex items-center gap-2">
               <div className="flex items-center gap-2 bg-[#070A11] border border-indigo-500/30 rounded-xl px-3.5 py-2 text-xs font-mono text-indigo-200 shadow-inner">
                 <User className="w-4 h-4 text-indigo-400" />
                 <span className="text-gray-400 font-sans">Active Profile:</span>
@@ -410,6 +447,18 @@ export default function App() {
                   )}
                 </select>
               </div>
+
+              {/* REMOVE / DELETE PROFILE BUTTON WITH CROSS ICON ON HOVER */}
+              {activeProfileId && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteProfile(activeProfileId)}
+                  title={`Delete active profile #${activeProfileId}`}
+                  className="group relative flex items-center justify-center p-2 rounded-xl bg-[#070A11] border border-gray-800 hover:border-rose-500/60 hover:bg-rose-500/20 text-gray-400 hover:text-rose-400 transition-all duration-200 shadow-inner cursor-pointer"
+                >
+                  <X className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-90 text-gray-400 group-hover:text-rose-400" />
+                </button>
+              )}
             </div>
 
             {/* ARMORIQ SECURITY TOGGLE SWITCH */}
@@ -805,6 +854,15 @@ export default function App() {
                           <span className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-mono">
                             Profile ID #{activeProfileId}
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteProfile(activeProfileId)}
+                            title={`Remove profile #${activeProfileId}`}
+                            className="group flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-mono transition-all duration-200 cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-90 text-rose-400" />
+                            Delete Profile
+                          </button>
                         </div>
                         <p className="text-sm text-gray-400 mt-1 flex items-center gap-3">
                           <span>📧 {currentResume?.email || currentProfile.candidate_email || 'candidate@example.com'}</span>

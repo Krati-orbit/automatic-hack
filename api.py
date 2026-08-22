@@ -423,6 +423,35 @@ def get_profile_by_id(profile_id: int):
     }
 
 
+# ── 4B. Delete Candidate Profile Endpoint ───────────────────────────────────
+@app.delete("/api/profiles/{profile_id}")
+def delete_profile_by_id(profile_id: int):
+    """Deletes candidate profile, associated ranked opportunities, and orphan resumes."""
+    conn = get_db()
+    profile_row = conn.execute("SELECT resume_id FROM profiles WHERE id = ?", (profile_id,)).fetchone()
+    if not profile_row:
+        conn.close()
+        raise HTTPException(status_code=404, detail=f"Profile #{profile_id} not found")
+
+    resume_id = profile_row["resume_id"]
+
+    # Delete profile and ranked opportunities
+    conn.execute("DELETE FROM profiles WHERE id = ?", (profile_id,))
+    conn.execute("DELETE FROM ranked_opportunities WHERE profile_id = ?", (profile_id,))
+
+    # Check if resume is used by any other profile before deleting
+    if resume_id:
+        other_profiles = conn.execute("SELECT id FROM profiles WHERE resume_id = ?", (resume_id,)).fetchall()
+        if not other_profiles:
+            conn.execute("DELETE FROM resumes WHERE id = ?", (resume_id,))
+            conn.execute("DELETE FROM resume_analysis WHERE resume_id = ?", (resume_id,))
+
+    conn.commit()
+    conn.close()
+
+    return {"status": "success", "message": f"Profile #{profile_id} deleted successfully"}
+
+
 # ── 5. List All Resumes Endpoint ─────────────────────────────────────────────
 @app.get("/api/resumes")
 def get_all_resumes():
