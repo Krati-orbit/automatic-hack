@@ -4,8 +4,10 @@ import { motion } from 'framer-motion';
 import ChatMessage from './ChatMessage';
 import QuickActions from './QuickActions';
 import { executeAdkAgent } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 
 export default function ChatInterface() {
+  const { user, selectedCandidateId, setSelectedCandidateId, activeCandidate, candidates } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -46,7 +48,8 @@ export default function ChatInterface() {
     setIsLoading(true);
 
     try {
-      const response = await executeAdkAgent(trimmed, sessionId);
+      const targetUserOrCand = selectedCandidateId === 'all' ? (user?.id || 'default-user') : selectedCandidateId;
+      const response = await executeAdkAgent(trimmed, sessionId, targetUserOrCand);
       
       if (response?.session_id) {
         setSessionId(response.session_id);
@@ -97,19 +100,48 @@ export default function ChatInterface() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden relative">
-      {/* Header */}
-      <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl z-10">
-        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-cyan-400">
-          CareerOS AI
-        </h1>
-        <button
-          onClick={handleResetSession}
-          className="p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors flex items-center gap-2 text-sm font-medium"
-          title="New Chat Session"
-        >
-          <RotateCcw size={16} />
-          <span className="hidden sm:inline">New Session</span>
-        </button>
+      {/* Header with Candidate Selector */}
+      <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-200/50 dark:border-slate-800/50 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl z-10 flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-cyan-400">
+            CareerOS AI
+          </h1>
+          <span className="text-xs text-slate-400 hidden md:inline">• Multi-Agent Career Copilot</span>
+        </div>
+
+        {/* Candidate Grounding Selector */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 max-w-full">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">Grounding:</span>
+            <div className="relative w-full sm:w-64 max-w-full">
+              <select
+                value={selectedCandidateId}
+                onChange={(e) => setSelectedCandidateId(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-100 font-extrabold focus:outline-none focus:border-indigo-500 appearance-none pr-8 cursor-pointer shadow-inner truncate"
+              >
+                <option value="all">🌐 All Personas (Multi-Profile RAG)</option>
+                {candidates.map((c) => {
+                  const cleanRole = c.role ? c.role.split(' at ')[0].split('(')[0].split('|')[0].trim() : '';
+                  const shortRole = cleanRole.length > 25 ? cleanRole.slice(0, 23) + '...' : cleanRole;
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {shortRole ? `(${shortRole})` : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          </div>
+
+          <button
+            onClick={handleResetSession}
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors flex items-center gap-2 text-xs font-bold border border-slate-800 cursor-pointer"
+            title="New Chat Session"
+          >
+            <RotateCcw size={14} />
+            <span className="hidden sm:inline">New Session</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Chat Area */}
