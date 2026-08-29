@@ -527,7 +527,7 @@ def logout_endpoint():
 
 
 
-@app.get("/")
+@app.get("/api")
 def read_root():
     return {
         "status": "online",
@@ -4861,6 +4861,16 @@ def health_check():
 frontend_dist_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend", "dist")
 if os.path.exists(frontend_dist_path):
     from fastapi.staticfiles import StaticFiles
-    # Mount frontend static build
-    app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
+    from starlette.responses import FileResponse
+
+    assets_path = os.path.join(frontend_dist_path, "assets")
+    if os.path.exists(assets_path):
+        app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        file_path = os.path.join(frontend_dist_path, full_path)
+        if full_path and os.path.exists(file_path) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(frontend_dist_path, "index.html"))
 
