@@ -10,6 +10,13 @@ import io
 import re
 from typing import Any, Dict, List, Optional, Union
 
+# Limit multi-threading overhead to prevent memory spikes in containers
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 
 def convert_document(file_path: str, doc_type: str = "resume") -> Dict[str, Any]:
     """Converts ANY document (PDF, DOCX, Images, PPTX, HTML, TXT) to structured Markdown + Chunks.
@@ -57,11 +64,60 @@ def convert_document(file_path: str, doc_type: str = "resume") -> Dict[str, Any]
             "chunks": chunks
         }
 
+    # Check if AWS Lambda offloading is enabled for serverless execution
+    lambda_fn = os.environ.get("AWS_LAMBDA_DOCLING_FUNCTION")
+    if lambda_fn:
+        try:
+            import boto3
+            import json
+            import base64
+
+            region = os.environ.get("AWS_REGION", os.environ.get("AWS_DEFAULT_REGION", "us-east-1"))
+            client = boto3.client("lambda", region_name=region)
+
+            with open(file_path, "rb") as f:
+                file_bytes = f.read()
+
+            payload = {
+                "file_base64": base64.b64encode(file_bytes).decode("utf-8"),
+                "filename": os.path.basename(file_path),
+                "doc_type": doc_type
+            }
+
+            response = client.invoke(
+                FunctionName=lambda_fn,
+                InvocationType="RequestResponse",
+                Payload=json.dumps(payload).encode("utf-8")
+            )
+
+            res_payload = json.loads(response["Payload"].read().decode("utf-8"))
+            if response.get("StatusCode") == 200:
+                if isinstance(res_payload, dict) and "body" in res_payload:
+                    body_data = res_payload["body"]
+                    if isinstance(body_data, str):
+                        return json.loads(body_data)
+                    return body_data
+                elif isinstance(res_payload, dict) and "markdown" in res_payload:
+                    return res_payload
+        except Exception as lambda_err:
+            print(f"[Docling Lambda Offload Warning] {lambda_err}. Falling back to local execution.")
+
     try:
-        from docling.document_converter import DocumentConverter
+        from docling.document_converter import DocumentConverter, PdfFormatOption
+        from docling.datamodel.base_models import InputFormat
+        from docling.datamodel.pipeline_options import PdfPipelineOptions
         from docling_core.transforms.chunker import HierarchicalChunker
 
-        converter = DocumentConverter()
+        # High-efficiency lightweight pipeline: disable heavy OCR vision models to keep RAM < 600MB
+        pipeline_options = PdfPipelineOptions()
+        pipeline_options.do_ocr = False
+        pipeline_options.do_table_structure = True
+
+        converter = DocumentConverter(
+            format_options={
+                InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+            }
+        )
         result = converter.convert(file_path)
         doc = result.document
 

@@ -22,6 +22,14 @@ service:
     healthyThreshold: 1
     unhealthyThreshold: 3
 
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1024Mi"
+  limits:
+    cpu: "1000m"
+    memory: "2048Mi"
+
 env:
   - name: PORT
     value: "8000"
