@@ -82,6 +82,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const [initializing, setInitializing] = useState(() => {
+    return Boolean(
+      typeof window !== 'undefined' && 
+      (window.location.hash?.includes('access_token') || !localStorage.getItem('careeros_user'))
+    );
+  });
+
   const syncSupabaseUser = async (sbUser, sbToken) => {
     try {
       const email = sbUser.email;
@@ -114,22 +121,38 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('careeros_user', JSON.stringify(res.user));
         localStorage.setItem('careeros_token', activeToken);
         await refreshCandidates(res.user.id);
+
+        // Clean up access_token hash from the browser address bar
+        if (typeof window !== 'undefined' && window.location.hash?.includes('access_token')) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+
         return res.user;
       }
     } catch (err) {
       console.error('[Supabase Auth Sync Error]', err);
+    } finally {
+      setInitializing(false);
     }
   };
 
   // Listen to live Supabase Auth State (OAuth callback / session persistence)
   useEffect(() => {
+    let isMounted = true;
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!isMounted) return;
       if (session?.user) {
         await syncSupabaseUser(session.user, session.access_token);
+      } else {
+        setInitializing(false);
       }
+    }).catch(() => {
+      if (isMounted) setInitializing(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
       if (session?.user) {
         await syncSupabaseUser(session.user, session.access_token);
       } else if (event === 'SIGNED_OUT') {
@@ -139,10 +162,12 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('careeros_user');
         localStorage.removeItem('careeros_token');
         localStorage.removeItem('careeros_active_candidate_id');
+        setInitializing(false);
       }
     });
 
     return () => {
+      isMounted = false;
       subscription?.unsubscribe();
     };
   }, []);
@@ -255,7 +280,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{
       user,
       token,
-      loading,
+      loading: loading || initializing,
       isAuthenticated: !!user,
       candidates,
       selectedCandidateId,

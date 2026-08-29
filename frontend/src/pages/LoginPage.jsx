@@ -8,9 +8,15 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, register, signInWithGoogleOAuth, loginWithDirectGoogle } = useAuth();
+  const { login, register, signInWithGoogleOAuth, loginWithDirectGoogle, isAuthenticated } = useAuth();
 
   const from = location.state?.from?.pathname || '/';
+
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, from]);
 
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
