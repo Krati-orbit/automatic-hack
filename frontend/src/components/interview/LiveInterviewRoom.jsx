@@ -252,7 +252,9 @@ export default function LiveInterviewRoom({
       }
     };
 
-    const wsUrl = `ws://${window.location.hostname || "localhost"}:3000/api/live`;
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = window.location.host || "localhost:8000";
+    const wsUrl = `${protocol}//${host}/api/live`;
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
 
